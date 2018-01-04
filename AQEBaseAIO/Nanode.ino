@@ -49,11 +49,11 @@ void setupNanode(){
 
   if (!ether.dnsLookup(website)){
     Serial.println(F("DNS failed"));
-    Serial.println(F("Falling back to Adafruit IO Static IP - TODO"));
-    //ether.hisip[0] = 173;
-    //ether.hisip[1] = 203;
-    //ether.hisip[2] = 98;
-    //ether.hisip[3] = 29;
+    Serial.println(F("Falling back to Adafruit IO Static IP"));
+    ether.hisip[0] = 52;
+    ether.hisip[1] = 70;
+    ether.hisip[2] = 203;
+    ether.hisip[3] = 194;
   }
   else{
     Serial.println(F("DNS lookup succeeded."));

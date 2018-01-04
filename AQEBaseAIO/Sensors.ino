@@ -16,96 +16,7 @@ Stash stash;
 static byte tcp_session;
 
 #define APIKEY "2e2806f492f643b3a4ffe71ff400c2dd" // put your key here
-
-void postSensorData(){
-  byte sd = stash.create();
-  char temp[64] = {0};
-  char temp2[8] = {0};
-  char delimiter[2] = "_";
-  boolean isRaw = false;
-  boolean isR0 = false;
-
-  int sensor_type_length = strlen(rflink.getSensorType());
-  strcat(temp, rflink.getSensorType());
-  strcat(temp, delimiter);
-  stringConvertMAC(rflink.getSourceSensorAddress(), temp + sensor_type_length + 1,  '-');
-  strcat(temp, delimiter);
-  itoa(rflink.getSensorIndex(), temp2, 10);
-  strcat(temp, temp2);
-
-  stash.print(F("{\"datastreams\":[{\"id\": \""));
-  stash.print(temp);
-  stash.print(F("\",\"current_value\":\""));
-  stash.print(rflink.getSensorValue());
-  stash.print(F("\",\"tags\":[\"aqe:sensor_type="));
-
-  Serial.print(F("Sensor Type: "));
-  Serial.println(rflink.getSensorType());
-  if(strstr_P(rflink.getSensorType(), PSTR("_raw")) != NULL){
-    memset(temp, 0, 64);
-    strncpy(temp, rflink.getSensorType(), strlen(rflink.getSensorType()) - 4); // always ends in "_raw" if it has it
-    stash.print(temp);
-    isRaw = true;
-  }
-  else if(strstr_P(rflink.getSensorType(), PSTR("_r0")) != NULL){
-    memset(temp, 0, 64);
-    strncpy(temp, rflink.getSensorType(), strlen(rflink.getSensorType()) - 3); // always ends in "_r0" if it has it
-    stash.print(temp);
-    isR0 = true;
-  }
-  else{
-    stash.print(rflink.getSensorType());
-  }
-
-  stash.print(F("\",\"aqe:sensor_address="));
-  memset(temp, 0, 64);
-  stringConvertMAC(rflink.getSourceSensorAddress(), temp, ':');
-  stash.print(temp);
-
-  stash.print(F("\",\"aqe:sensor_index="));
-  stash.print(rflink.getSensorIndex());
-
-  stash.print(F("\",\"aqe:data_origin="));
-  if(isRaw){
-    stash.print(F("raw"));
-  }
-  else if(isR0){
-    stash.print(F("r0"));
-  }
-  else{
-    stash.print(F("computed"));
-  }
-
-  stash.print(F("\",\"aqe:firmware_version="));
-  stash.print(rflink.getRemoteFirmwareVersion());
-
-  stash.print(F("\"],\"unit\":{\"label\":\""));
-  stash.print(rflink.getSensorUnits());
-  stash.print(F("\",\"symbol\":\""));
-  stash.print(rflink.getSensorUnits());
-  stash.print(F("\"}}]}"));
-
-  stash.save();
-
-  Serial.println(F("Preparing stash"));
-  Stash::prepare(PSTR("PUT http://$F/v2/feeds/$E.json HTTP/1.0" "\r\n"
-    "Host: $F" "\r\n"
-    "X-ApiKey: $E" "\r\n"
-    "Content-Length: $D" "\r\n"
-    "\r\n"
-    "$H"),
-  website,
-  (const void *) FEED_ID_EEPROM_ADDRESS,
-  website,
-  (const void *) API_KEY_EEPROM_ADDRESS,
-  stash.size(),
-  sd);
-
-  Serial.println(F("Sending data to Cosm"));
-
-  tcp_session = ether.tcpSend();
-  Serial.println(F("Data sent"));
-}
+#define USERNAME "fraguada"
 
 void postSensorDataToAIO(){
 
@@ -117,17 +28,121 @@ void postSensorDataToAIO(){
 
   Serial.println(F("Preparing stash"));
 
-  //TODO: Change feed according to sensor Type
+  //TODO: Change feed according to sensor Type rflink.getSensorType()
   //TODO: store username in variable
 
-  Stash::prepare(PSTR("POST http://io.adafruit.com/api/v2/fraguada/feeds/test/data HTTP/1.1" "\r\n"
+  Serial.print("Sensor to send: ");
+  Serial.println(rflink.getSensorType());
+
+  if(strcmp(rflink.getSensorType(), "Dust") == 0)
+  {
+
+    Stash::prepare(PSTR("POST http://io.adafruit.com/api/v2/$F/feeds/$F/data HTTP/1.1" "\r\n"
       "Host: $F" "\r\n"
       "X-AIO-Key: $F" "\r\n"
       "Content-Type: application/json" "\r\n"
       "Content-Length: $D" "\r\n"
       "\r\n"
       "$H"),
-    website,PSTR(APIKEY), stash.size(), sd);
+    PSTR(USERNAME), PSTR("aqedust"),website, PSTR(APIKEY), stash.size(), sd);
+
+    Serial.println(F("Sending data to Adafruit IO"));
+
+    tcp_session = ether.tcpSend();
+    Serial.println(F("Data sent"));
+    return;
+      //dispatch("aqedust", stash, sd);
+  }
+
+  if(strcmp(rflink.getSensorType(), "CO") == 0)
+  {
+    Stash::prepare(PSTR("POST http://io.adafruit.com/api/v2/$F/feeds/$F/data HTTP/1.1" "\r\n"
+      "Host: $F" "\r\n"
+      "X-AIO-Key: $F" "\r\n"
+      "Content-Type: application/json" "\r\n"
+      "Content-Length: $D" "\r\n"
+      "\r\n"
+      "$H"),
+    PSTR(USERNAME), PSTR("aqeco"), website, PSTR(APIKEY), stash.size(), sd);
+
+    Serial.println(F("Sending data to Adafruit IO"));
+
+    tcp_session = ether.tcpSend();
+    Serial.println(F("Data sent"));
+    return;
+  }
+
+  if(strcmp(rflink.getSensorType(), "NO2") == 0)
+  {
+    Stash::prepare(PSTR("POST http://io.adafruit.com/api/v2/$F/feeds/$F/data HTTP/1.1" "\r\n"
+      "Host: $F" "\r\n"
+      "X-AIO-Key: $F" "\r\n"
+      "Content-Type: application/json" "\r\n"
+      "Content-Length: $D" "\r\n"
+      "\r\n"
+      "$H"),
+    PSTR(USERNAME), PSTR("aqeno2"), website, PSTR(APIKEY), stash.size(), sd);
+
+    Serial.println(F("Sending data to Adafruit IO"));
+
+    tcp_session = ether.tcpSend();
+    Serial.println(F("Data sent"));
+    return;
+  }
+
+  if(strcmp(rflink.getSensorType(), "Temperature") == 0)
+  {
+    Stash::prepare(PSTR("POST http://io.adafruit.com/api/v2/$F/feeds/$F/data HTTP/1.1" "\r\n"
+      "Host: $F" "\r\n"
+      "X-AIO-Key: $F" "\r\n"
+      "Content-Type: application/json" "\r\n"
+      "Content-Length: $D" "\r\n"
+      "\r\n"
+      "$H"),
+    PSTR(USERNAME), PSTR("aqetemp"), website, PSTR(APIKEY), stash.size(), sd);
+
+    Serial.println(F("Sending data to Adafruit IO"));
+
+    tcp_session = ether.tcpSend();
+    Serial.println(F("Data sent"));
+    return;
+  }
+
+  if(strcmp(rflink.getSensorType(), "Humidity") == 0)
+  {
+    Stash::prepare(PSTR("POST http://io.adafruit.com/api/v2/$F/feeds/$F/data HTTP/1.1" "\r\n"
+      "Host: $F" "\r\n"
+      "X-AIO-Key: $F" "\r\n"
+      "Content-Type: application/json" "\r\n"
+      "Content-Length: $D" "\r\n"
+      "\r\n"
+      "$H"),
+    PSTR(USERNAME), PSTR("aqerh"), website, PSTR(APIKEY), stash.size(), sd);
+
+    Serial.println(F("Sending data to Adafruit IO"));
+
+    tcp_session = ether.tcpSend();
+    Serial.println(F("Data sent"));
+    return;
+  }
+
+}
+
+void dispatch(char * feed, Stash sta, byte s){
+
+  Stash::prepare(PSTR("POST http://io.adafruit.com/api/v2/$F/feeds/$F/data HTTP/1.1" "\r\n"
+      "Host: $F" "\r\n"
+      "X-AIO-Key: $F" "\r\n"
+      "Content-Type: application/json" "\r\n"
+      "Content-Length: $D" "\r\n"
+      "\r\n"
+      "$H"),
+    PSTR(USERNAME), feed, website, PSTR(APIKEY), sta.size(), s);
+
+    Serial.println(F("Sending data to Adafruit IO"));
+
+    tcp_session = ether.tcpSend();
+    Serial.println(F("Data sent"));
 
 }
 
@@ -145,8 +160,9 @@ void checkCosmReply(){
   const char *reply = ether.tcpReply(tcp_session);
   if(reply != 0){
     Serial.println(F(">>> RESPONSE RECEIVED ---"));
-    markCosmResponse();
     Serial.println(reply);
+    markCosmResponse();
+
   }
 
 }
@@ -170,6 +186,6 @@ boolean haventHeardFromCosmLately(){
 
 //TODO: Change Name
 void markCosmResponse(){
-   previousCosmResponseTimestamp = millis();
+  previousCosmResponseTimestamp = millis();
 
 }

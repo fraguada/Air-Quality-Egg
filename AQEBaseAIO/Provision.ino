@@ -23,15 +23,15 @@ static void convertByteArrayToAsciiHex(uint8_t* hash, char * returnString, uint8
 
 // computes the activation_url
 void computeActivationUrl(char * activation_url){
-  
+
   //Air Quality Egg v01 Product Secret:
   //e54c89cf2b916934a288304b6f7630e5b9aad8c8
-  uint8_t deviceKey[] ={ 
+  uint8_t deviceKey[] ={
     0xe5,0x4c,0x89,0xcf,0x2b,0x91,0x69,0x34,0xa2,0x88,
     0x30,0x4b,0x6f,0x76,0x30,0xe5,0xb9,0xaa,0xd8,0xc8
   };
-  
-  //--- pull MAC address from Nanode, stick it in serialNumber  
+
+  //--- pull MAC address from Nanode, stick it in serialNumber
   char serial_number[18] = {0};
   Serial.print(F("Serial #: "));
   for(uint8_t ii = 0; ii < 6; ii++){
@@ -39,23 +39,23 @@ void computeActivationUrl(char * activation_url){
     if(ii == 5) serial_number[3*ii+2] = '\0';
     else serial_number[3*ii+2] = ':';
   }
-  Serial.println(serial_number);  
-  
+  Serial.println(serial_number);
+
   //--- generate SHA1
   Serial.println(F("compute sha: "));
-  
+
   #define HMAC_LENGTH 20
-  Sha1.initHmac(deviceKey,HMAC_LENGTH); 
+  Sha1.initHmac(deviceKey,HMAC_LENGTH);
   Sha1.print(serial_number);
-  
+
   convertByteArrayToAsciiHex(Sha1.resultHmac(), activation_url, HMAC_LENGTH);
-  
-  PRINT_STACK_SPACE;  
-  
+
+  PRINT_STACK_SPACE;
+
   strcat_P(activation_url, PSTR("/activate"));
-  Serial.println(activation_url);  
-  
-  activation_url[ACTIVATION_URL_LENGTH-1] = '\0'; // ensure null terminated  
+  Serial.println(activation_url);
+
+  activation_url[ACTIVATION_URL_LENGTH-1] = '\0'; // ensure null terminated
 }
 
 // called when the client request is complete
@@ -64,15 +64,15 @@ static void provisioningCallback (byte status, word off, word len) {
   boolean foundApiKey = false;
   uint8_t api_key_strlen = 0;
   uint8_t feed_id_strlen = 0;
-  
+
   const char* cbuf = ((const char *) Ethernet::buffer + off);
-  
-  Serial.println(F(">>> PROVISIONING CALLBACK"));  
+
+  Serial.println(F(">>> PROVISIONING CALLBACK"));
   Serial.println((int) status);
   Serial.println((int) off);
   Serial.println((int) len);
 
-  
+
   char* token = strtok((char *)cbuf, ":,\"\n"); //tokenize
 
   while ( token != 0 ){
@@ -87,8 +87,8 @@ static void provisioningCallback (byte status, word off, word len) {
       setApiKeyInEEPROM(token);
       api_key_strlen = strlen(token);
       foundApiKey = false;
-    } 
-    if (foundFeedId){ 
+    }
+    if (foundFeedId){
       // strncpy(feedId, token, FEED_ID_LENGTH);
       // put the token in EEPROM to be retrieved later
       setFeedIdInEEPROM(token);
@@ -100,7 +100,7 @@ static void provisioningCallback (byte status, word off, word len) {
     if(strncmp_P(token, PSTR("apikey"),6)==0){
       Serial.print(F(">>>FOUND APIKEY\n"));
       foundApiKey = true; //the next token will be the apikey
-    } 
+    }
     if(strncmp_P(token,PSTR("feed_id"),6)==0){
       Serial.print(F(">>>FOUND FEED_ID\n"));
       foundFeedId = true; //the next token will be the feedid
@@ -109,15 +109,15 @@ static void provisioningCallback (byte status, word off, word len) {
     if(feed_id_strlen > 0 && api_key_strlen > 0){
       activated = true;
       Serial.print(F("API KEY LENGTH = "));
-      Serial.println(api_key_strlen);        
+      Serial.println(api_key_strlen);
       Serial.print(F("FEED LENGTH = "));
       Serial.println(feed_id_strlen);
-      eeprom_write_byte((uint8_t *) ACTIVATION_STATUS_EEPROM_ADDRESS, PROVISIONING_STATUS_GOOD);   
+      eeprom_write_byte((uint8_t *) ACTIVATION_STATUS_EEPROM_ADDRESS, PROVISIONING_STATUS_GOOD);
       rgb.setColor(green);
       delay(10000);
-      soft_restart();     
+      soft_restart();
     }
-    
+
     token = strtok (0, ":,\"\n"); // advance token pointer
   }
 
@@ -131,9 +131,9 @@ void activateWithCosm(){
   uint8_t test = eeprom_read_byte((const uint8_t *) ACTIVATION_STATUS_EEPROM_ADDRESS);
   if(test == PROVISIONING_STATUS_GOOD){
     Serial.println(F("Previously provisioned"));
-    return;   
+    return;
   }
-  else{ 
+  else{
     Serial.print(F("Uninitialized - test value = "));
     Serial.println(test, HEX);
     ether.persistTcpConnection(true);
@@ -145,25 +145,25 @@ void activateWithCosm(){
 void doProvisioning(){
   uint32_t timer = INITIAL_PACKET_DELAY_MS; // initial waiting period
   uint32_t current_time = 0;
-  uint16_t numAttempts = 0;  
-  char activation_url[ACTIVATION_URL_LENGTH];  
- 
+  uint16_t numAttempts = 0;
+  char activation_url[ACTIVATION_URL_LENGTH];
+
   computeActivationUrl(activation_url);
- 
+
   activated = false;
-  for(;;){        
+  for(;;){
     if(numAttempts == MAX_ACTIVATION_ATTEMPTS){
       Serial.print(F("Provisioning failed "));
       Serial.print(MAX_ACTIVATION_ATTEMPTS);
       Serial.println(F(" times, restarting"));
       Serial.flush();
       rgb.setColor(red);
-      delay(10000);      
+      delay(10000);
       soft_restart(); // better reset at this point...
     }
-    
+
     ether.packetLoop(ether.packetReceive());
-    
+
     current_time = millis();
     if (current_time > timer) {
       timer = current_time + ACTIVATION_RETRY_INTERVAL_MS;
@@ -172,17 +172,17 @@ void doProvisioning(){
         Serial.print(F("<<< REQ "));
         ether.browseUrl(PSTR("/v2/devices/"), activation_url, website, provisioningCallback);
         numAttempts++;
-        //URL hit is something like: 
+        //URL hit is something like:
         //http://api.cosm.com/v2/devices/0aad07fc55fb297074a48d0cb9ca950e0d92ed72/activate
-      }  
+      }
       else {
         Serial.println(F(">>ACTIVATED<<"));
         // the callback function will have stored the api key and feed id in EEPROM
         return; // we are activated
       }
-      PRINT_STACK_SPACE; 
-    }     
-  }   
+      PRINT_STACK_SPACE;
+    }
+  }
 }
 
 void setApiKeyInEEPROM(char * api_key){
