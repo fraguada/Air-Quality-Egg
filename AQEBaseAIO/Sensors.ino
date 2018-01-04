@@ -15,8 +15,8 @@ const long TOO_LONG_FOR_COSM_RESPONSE = 600000; // 10 minutes
 Stash stash;
 static byte tcp_session;
 
-#define APIKEY "2e2806f492f643b3a4ffe71ff400c2dd" // put your key here
-#define USERNAME "fraguada"
+#define APIKEY "YOURAPIKEY" // put your key here
+#define USERNAME "YOURUSERNAME"
 
 void postSensorDataToAIO(){
 
